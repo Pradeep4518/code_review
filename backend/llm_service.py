@@ -14,8 +14,12 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-DEFAULT_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-FALLBACK_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3-32b"]
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+FALLBACK_MODELS = ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]
 
 STATELESS_SYSTEM_PROMPT = """You are a competent but generic AI code reviewer.
 You have no knowledge of this specific team's conventions, prior decisions, or
@@ -50,8 +54,15 @@ class ReviewResult:
 
 class GroqService:
     def __init__(self):
-        self.api_key = os.getenv("GROQ_API_KEY", "").strip()
-        self.model = DEFAULT_MODEL
+        self._custom_model = os.getenv("GROQ_MODEL")
+
+    @property
+    def api_key(self) -> str:
+        return os.getenv("GROQ_API_KEY", "").strip()
+
+    @property
+    def model(self) -> str:
+        return os.getenv("GROQ_MODEL", self._custom_model or DEFAULT_MODEL).strip()
 
     @property
     def configured(self) -> bool:
@@ -64,7 +75,7 @@ class GroqService:
             temperature=0.2,
             max_tokens=800,
         )
-        return resp.choices[0].message.content
+        return resp.choices[0].message.content or ""
 
     async def review(
         self, code_diff: str, pr_title: str, memory_context: str | None
@@ -96,7 +107,8 @@ class GroqService:
         ]
 
         client = AsyncGroq(api_key=self.api_key)
-        models_to_try = [self.model] + [m for m in FALLBACK_MODELS if m != self.model]
+        active_model = self.model
+        models_to_try = [active_model] + [m for m in FALLBACK_MODELS if m != active_model]
         last_error = None
 
         for model in models_to_try:

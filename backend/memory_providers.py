@@ -119,12 +119,12 @@ class LocalMemoryProvider(MemoryProvider):
 
     def _read(self) -> list[dict[str, Any]]:
         try:
-            return json.loads(self.path.read_text())
+            return json.loads(self.path.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
     def _write(self, items: list[dict[str, Any]]) -> None:
-        self.path.write_text(json.dumps(items, indent=2))
+        self.path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
 
     async def is_connected(self) -> bool:
         return True  # local storage is always "connected"
@@ -236,7 +236,7 @@ class HindsightMemoryProvider(MemoryProvider):
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(f"{self.base_url}/health/live")
                 return resp.status_code == 200
-        except httpx.HTTPError:
+        except Exception:
             return False
 
     async def retain(self, content: str, category: str, source: str) -> MemoryItem:
@@ -354,7 +354,7 @@ _HINDSIGHT_INDEX_PATH = Path(__file__).parent / "hindsight_local_index.json"
 
 def _read_hindsight_local_index(bank_id: str) -> list[MemoryItem]:
     try:
-        data = json.loads(_HINDSIGHT_INDEX_PATH.read_text())
+        data = json.loads(_HINDSIGHT_INDEX_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return []
     return [MemoryItem(**m) for m in data.get(bank_id, [])]
@@ -362,7 +362,7 @@ def _read_hindsight_local_index(bank_id: str) -> list[MemoryItem]:
 
 def _record_hindsight_local_index(bank_id: str, item: MemoryItem) -> None:
     try:
-        data = json.loads(_HINDSIGHT_INDEX_PATH.read_text())
+        data = json.loads(_HINDSIGHT_INDEX_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
     data.setdefault(bank_id, [])
@@ -376,7 +376,7 @@ def _record_hindsight_local_index(bank_id: str, item: MemoryItem) -> None:
             "metadata": item.metadata,
         }
     )
-    _HINDSIGHT_INDEX_PATH.write_text(json.dumps(data, indent=2))
+    _HINDSIGHT_INDEX_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def _now_iso() -> str:

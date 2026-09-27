@@ -18,14 +18,15 @@ import logging
 import os
 
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from llm_service import GroqService
 from memory_providers import HindsightMemoryProvider, MemoryItem, build_memory_provider
-
-load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repomind")

@@ -81,7 +81,8 @@ async function api(path, opts = {}) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ? JSON.stringify(body.detail) : `HTTP ${res.status}`);
+    const msg = typeof body.detail === "string" ? body.detail : (body.detail ? JSON.stringify(body.detail) : `HTTP ${res.status}`);
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -250,34 +251,41 @@ function MemoryPill({ mem }) {
 
 function ReviewText({ text }) {
   // Render "Memory used:" lines with a distinct highlighted style.
-  const lines = text.split("\n");
+  const lines = (text || "").split("\n");
   return (
     <div className="space-y-1.5 text-[13px] leading-relaxed">
       {lines.map((line, i) => {
         const trimmed = line.trim();
-        if (trimmed.startsWith("Memory used:")) {
+        
+        // Match various memory formats: "Memory used:", "- Memory used:", "**Memory used:**", etc.
+        const memMatch = trimmed.match(/^[-*•]?\s*\*{0,2}Memory\s+used\*{0,2}:\s*(.*)$/i);
+        if (memMatch) {
+          const memoryContent = memMatch[1].replace(/^["']|["']$/g, "").trim();
           return (
             <div
               key={i}
-              className="ml-4 flex items-start gap-1.5 bg-accent-purple/10 border border-accent-purple/25 rounded-md px-2.5 py-1.5 text-accent-purple/90"
+              className="ml-3 my-1 flex items-start gap-2 bg-accent-purple/15 border border-accent-purple/30 rounded-lg px-3 py-2 text-purple-200 shadow-sm"
             >
-              <Brain size={13} className="mt-0.5 shrink-0" />
-              <span className="italic">{trimmed.replace("Memory used:", "").trim()}</span>
+              <Brain size={14} className="mt-0.5 text-accent-purple shrink-0" />
+              <div className="text-xs">
+                <span className="font-semibold text-accent-purple mr-1.5">Memory Applied:</span>
+                <span className="italic text-purple-200">"{memoryContent}"</span>
+              </div>
             </div>
           );
         }
         if (trimmed.startsWith("###")) {
           return (
-            <div key={i} className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold mb-1">
+            <div key={i} className="text-slate-400 text-xs uppercase tracking-wider font-bold mt-2 mb-1">
               {trimmed.replace(/^#+/, "").trim()}
             </div>
           );
         }
-        if (trimmed.startsWith("-")) {
+        if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
           return (
             <div key={i} className="flex items-start gap-2 text-slate-200">
               <span className="text-accent-blue mt-1">•</span>
-              <span dangerouslySetInnerHTML={{ __html: mdBold(trimmed.slice(1).trim()) }} />
+              <span dangerouslySetInnerHTML={{ __html: mdBold(trimmed.replace(/^[-*]\s*/, "").trim()) }} />
             </div>
           );
         }
@@ -295,8 +303,8 @@ function mdBold(s) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, '<code class="bg-black/30 px-1 py-0.5 rounded text-[12px] font-mono">$1</code>');
+    .replace(/\*\*(.+?)\*\*/g, "<strong class=\"font-semibold text-white\">$1</strong>")
+    .replace(/`([^`]+)`/g, '<code class="bg-black/40 text-blue-300 border border-border/60 px-1.5 py-0.5 rounded text-[12px] font-mono">$1</code>');
 }
 
 function ReviewPanel({ title, badge, badgeTone, icon: Icon, result, loading, placeholder }) {
